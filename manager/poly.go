@@ -23,11 +23,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -480,11 +482,22 @@ func (s *PaletteSender) sendTxToPalette(
 ) (err error) {
 
 	curNonce := s.nonceManager.UseNonce(s.acc.Address)
+
+	callMsg := ethereum.CallMsg{
+		From: s.acc.Address, To: &contractAddr, Gas: 0, GasPrice: paletteTxGasPrice,
+		Value: big.NewInt(0), Data: txData,
+	}
+	gasLimit, err := s.paletteClient.EstimateGas(context.Background(), callMsg)
+	if err != nil {
+		log.Errorf("sendTxToPalette - estimate gas limit error: %s", err.Error())
+		return err
+	}
+
 	tx := types.NewTransaction(
 		curNonce,
 		contractAddr,
 		paletteTxValue,
-		paletteGasLimit,
+		gasLimit,
 		paletteTxGasPrice,
 		txData,
 	)
